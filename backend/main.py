@@ -346,6 +346,7 @@ def ingest_endpoint(req: IngestRequest):
             "files_processed": stats["files"],
         }
     except Exception as e:
+        print(f"[ingest error] {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 

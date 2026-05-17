@@ -2,6 +2,8 @@
 
 > Ask questions about any GitHub repository in plain English. The assistant retrieves the most relevant code chunks using vector similarity search and answers with GPT-4o — with exact source file citations.
 
+![Demo](docs/screenshot.png)
+
 ![Architecture](./docs/architecture.png)
 
 ## 🏗️ Architecture
