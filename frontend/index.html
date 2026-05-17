@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Assistant · Codebase Intelligence</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg0:       #080b10;
+      --bg1:       #0e121a;
+      --bg2:       #141923;
+      --bg3:       #1b2232;
+      --border:    rgba(255,255,255,0.07);
+      --border-hi: rgba(255,255,255,0.15);
+      --cyan:      #00d4ff;
+      --cyan-dim:  rgba(0,212,255,0.12);
+      --cyan-glow: rgba(0,212,255,0.25);
+      --amber:     #ffb347;
+      --amber-dim: rgba(255,179,71,0.12);
+      --green:     #4ade80;
+      --red:       #f87171;
+      --text0:     #e8eaf0;
+      --text1:     #9ba3b6;
+      --text2:     #5a6478;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --font-disp: 'Syne', sans-serif;
+      --radius:    8px;
+      --sidebar-w: 300px;
+      --transition: 0.18s ease;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg0);
+      color: var(--text0);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.5;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px;
+      height: 52px;
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .logo { display: flex; align-items: center; gap: 10px; }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--cyan), #7c3aed);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: var(--font-disp);
+      font-weight: 800; font-size: 15px;
+      letter-spacing: -0.3px; color: var(--text0);
+    }
+
+    .logo-sub {
+      font-size: 10px; color: var(--text2);
+      letter-spacing: 1.5px; text-transform: uppercase; margin-left: 2px;
+    }
+
+    .header-right {
+      margin-left: auto; display: flex; align-items: center; gap: 12px;
+    }
+
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text2); transition: background 0.4s;
+    }
+    .status-dot.ok   { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status-dot.fail { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+    .status-label { color: var(--text2); font-size: 11px; }
+
+    .badge {
+      font-size: 10px; padding: 2px 8px;
+      border-radius: 20px; border: 1px solid var(--border-hi);
+      color: var(--text1); letter-spacing: 0.5px;
+    }
+
+    .new-chat-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #9ba3b6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .new-chat-btn:hover { border-color: rgba(255,255,255,0.25); color: #e8eaf0; }
+
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    aside {
+      width: var(--sidebar-w);
+      background: var(--bg1);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      flex-shrink: 0; overflow: hidden;
+    }
+
+    .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
+
+    .sidebar-label {
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text2); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sidebar-label::before {
+      content: ''; width: 3px; height: 3px;
+      border-radius: 50%; background: var(--cyan);
+    }
+
+    textarea.url-input {
+      width: 100%; background: var(--bg2);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 8px 10px; color: var(--text0);
+      font-family: var(--font-mono); font-size: 12px;
+      resize: none; height: 70px; outline: none;
+      transition: border-color var(--transition); line-height: 1.5;
+    }
+    textarea.url-input::placeholder { color: var(--text2); }
+    textarea.url-input:focus { border-color: var(--cyan); }
+
+    input.name-input {
+      width: 100%; background: var(--bg2);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 6px 10px; color: var(--text0);
+      font-family: var(--font-mono); font-size: 12px;
+      outline: none; transition: border-color var(--transition); margin-top: 6px;
+    }
+    input.name-input::placeholder { color: var(--text2); }
+    input.name-input:focus { border-color: var(--cyan); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 7px 14px; border-radius: var(--radius);
+      border: none; cursor: pointer;
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+      transition: all var(--transition); white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--cyan); color: #000; width: 100%; margin-top: 8px; }
+    .btn-primary:hover:not(:disabled) { background: #33dcff; box-shadow: 0 0 16px var(--cyan-glow); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-danger {
+      background: transparent; color: var(--red);
+      border: 1px solid transparent; padding: 3px 6px; font-size: 11px;
+    }
+    .btn-danger:hover { border-color: var(--red); }
+
+    .progress-bar {
+      height: 2px; background: var(--bg3); border-radius: 2px;
+      margin-top: 8px; overflow: hidden; display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), #7c3aed);
+      animation: progress-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes progress-pulse {
+      0%   { width: 5%;  opacity: 1; }
+      50%  { width: 85%; opacity: 0.8; }
+      100% { width: 5%;  opacity: 1; }
+    }
+
+    .repo-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .repo-list::-webkit-scrollbar { width: 4px; }
+    .repo-list::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+    .repo-list-label {
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text2); padding: 0 4px 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .repo-list-label::before {
+      content: ''; width: 3px; height: 3px; border-radius: 50%; background: var(--amber);
+    }
+
+    .repo-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: var(--radius);
+      border: 1px solid transparent; cursor: pointer;
+      transition: all var(--transition); margin-bottom: 4px;
+    }
+    .repo-item:hover { background: var(--bg3); border-color: var(--border); }
+    .repo-item.active { background: var(--cyan-dim); border-color: var(--cyan); }
+
+    .repo-icon { font-size: 14px; flex-shrink: 0; }
+    .repo-info { flex: 1; min-width: 0; }
+    .repo-name {
+      font-size: 12px; font-weight: 500; color: var(--text0);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .repo-meta { font-size: 10px; color: var(--text2); }
+    .repo-actions { opacity: 0; transition: opacity var(--transition); }
+    .repo-item:hover .repo-actions { opacity: 1; }
+
+    .repo-empty {
+      text-align: center; padding: 24px 12px;
+      color: var(--text2); font-size: 11px; line-height: 1.8;
+    }
+
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg0); }
+
+    .repo-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px; background: var(--bg1);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .repo-bar-name { font-size: 12px; color: var(--cyan); font-weight: 500; }
+    .repo-bar-count { font-size: 11px; color: var(--text2); }
+    .repo-bar-empty { color: var(--text2); font-size: 12px; font-style: italic; }
+
+    .messages {
+      flex: 1; overflow-y: auto; padding: 24px 20px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .messages::-webkit-scrollbar { width: 5px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+    .welcome {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; gap: 16px;
+      opacity: 0; animation: fade-in 0.6s ease 0.2s forwards; padding: 40px;
+    }
+
+    .welcome-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--cyan-dim), rgba(124,58,237,0.15));
+      border: 1px solid var(--border-hi); border-radius: 16px;
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+
+    .welcome h2 {
+      font-family: var(--font-disp); font-size: 22px;
+      font-weight: 700; color: var(--text0);
+    }
+
+    .welcome p { color: var(--text1); font-size: 12px; max-width: 360px; line-height: 1.7; }
+
+    .welcome-hints {
+      display: flex; flex-direction: column; gap: 6px;
+      margin-top: 8px; width: 100%; max-width: 420px;
+    }
+
+    .hint-chip {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px 14px;
+      font-size: 12px; color: var(--text1); cursor: pointer;
+      text-align: left; transition: all var(--transition);
+    }
+    .hint-chip:hover { border-color: var(--cyan); color: var(--text0); background: var(--cyan-dim); }
+
+    .message { display: flex; gap: 12px; animation: slide-up 0.25s ease; }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-avatar {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0; margin-top: 2px;
+    }
+    .msg-avatar.user { background: var(--bg3); border: 1px solid var(--border-hi); }
+    .msg-avatar.ai   { background: linear-gradient(135deg, var(--cyan-dim), rgba(124,58,237,0.2)); border: 1px solid var(--cyan); }
+
+    .msg-content { flex: 1; min-width: 0; }
+
+    .msg-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    }
+
+    .msg-author { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .msg-author.user { color: var(--amber); }
+    .msg-author.ai   { color: var(--cyan); }
+    .msg-time { font-size: 10px; color: var(--text2); }
+
+    .msg-body { font-size: 13px; color: var(--text0); line-height: 1.7; }
+    .msg-body p  { margin-bottom: 10px; }
+    .msg-body p:last-child { margin-bottom: 0; }
+    .msg-body h1, .msg-body h2, .msg-body h3 {
+      font-family: var(--font-disp); margin: 16px 0 8px; color: var(--text0);
+    }
+    .msg-body ul, .msg-body ol { padding-left: 20px; margin-bottom: 10px; }
+    .msg-body li { margin-bottom: 3px; }
+    .msg-body code:not(pre code) {
+      background: var(--bg3); border: 1px solid var(--border-hi);
+      border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--cyan);
+    }
+    .msg-body pre {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow-x: auto;
+      margin: 10px 0; position: relative;
+    }
+    .msg-body pre code { font-size: 12px; padding: 14px 16px; display: block; }
+
+    .code-copy {
+      position: absolute; top: 6px; right: 8px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 4px; padding: 2px 8px;
+      font-size: 10px; color: var(--text2); cursor: pointer;
+      transition: all var(--transition); font-family: var(--font-mono);
+    }
+    .code-copy:hover { color: var(--text0); border-color: var(--border-hi); }
+
+    .typing-cursor {
+      display: inline-block; width: 2px; height: 14px;
+      background: var(--cyan); margin-left: 2px;
+      vertical-align: text-bottom; animation: blink 0.7s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .sources-panel {
+      margin-top: 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; background: var(--bg1);
+    }
+
+    .sources-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none; transition: background var(--transition);
+    }
+    .sources-header:hover { background: var(--bg3); }
+
+    .sources-title { font-size: 11px; color: var(--text1); text-transform: uppercase; letter-spacing: 1px; }
+
+    .sources-count {
+      font-size: 10px; padding: 1px 6px;
+      background: var(--cyan-dim); border: 1px solid var(--cyan);
+      border-radius: 10px; color: var(--cyan);
+    }
+
+    .sources-chevron { margin-left: auto; color: var(--text2); font-size: 10px; transition: transform var(--transition); }
+    .sources-chevron.open { transform: rotate(180deg); }
+    .sources-body { display: none; }
+    .sources-body.open { display: block; }
+
+    .source-item {
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background var(--transition);
+    }
+    .source-item:last-child { border-bottom: none; }
+    .source-item:hover { background: var(--bg2); }
+
+    .source-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+
+    .source-num {
+      font-size: 10px; width: 18px; height: 18px; border-radius: 4px;
+      background: var(--cyan-dim); border: 1px solid var(--cyan);
+      color: var(--cyan); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .source-file {
+      font-size: 12px; color: var(--text0); font-weight: 500;
+      flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .source-sim { font-size: 10px; color: var(--green); }
+    .source-meta { font-size: 11px; color: var(--text2); padding-left: 26px; }
+
+    .source-code-preview { margin-top: 8px; padding-left: 26px; display: none; }
+    .source-code-preview.open { display: block; }
+    .source-code-preview pre {
+      background: var(--bg0); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 12px;
+      overflow-x: auto; font-size: 11px; line-height: 1.5;
+    }
+
+    .input-area {
+      padding: 16px 20px; border-top: 1px solid var(--border);
+      background: var(--bg1); flex-shrink: 0;
+    }
+
+    .input-wrap {
+      display: flex; gap: 10px; align-items: flex-end;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; transition: border-color var(--transition);
+    }
+    .input-wrap:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan-glow); }
+
+    textarea#question {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text0); font-family: var(--font-mono); font-size: 13px;
+      resize: none; min-height: 22px; max-height: 160px; line-height: 1.6;
+    }
+    textarea#question::placeholder { color: var(--text2); }
+
+    .send-btn {
+      background: var(--cyan); border: none; border-radius: 7px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all var(--transition); flex-shrink: 0;
+      color: #000; font-size: 14px;
+    }
+    .send-btn:hover:not(:disabled) { background: #33dcff; box-shadow: 0 0 12px var(--cyan-glow); }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .input-hint {
+      font-size: 10px; color: var(--text2); margin-top: 8px; display: flex; gap: 16px;
+    }
+
+    kbd {
+      background: var(--bg3); border: 1px solid var(--border-hi);
+      border-radius: 3px; padding: 1px 5px;
+      font-family: var(--font-mono); font-size: 10px;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--bg2); border: 1px solid var(--border-hi);
+      border-radius: 8px; padding: 10px 18px;
+      font-size: 12px; color: var(--text0);
+      opacity: 0; transition: all 0.3s ease;
+      z-index: 9999; white-space: nowrap; pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red); }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">RAG Assistant</div>
+      <div class="logo-sub">Codebase Intelligence</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge">v1.0.0</div>
+    <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-label" id="statusLabel">Connecting...</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Ingest Repository</div>
+      <textarea class="url-input" id="repoSource" placeholder="https://github.com/user/repo&#10;— or —&#10;/local/path/to/project"></textarea>
+      <input class="name-input" id="repoName" placeholder="Custom name (optional)" />
+      <button class="btn btn-primary" id="ingestBtn" onclick="ingestRepo()">
+        <span>⬇</span> Index Repository
+      </button>
+      <div class="progress-bar" id="progressBar"><div class="progress-fill"></div></div>
+    </div>
+
+    <div class="repo-list">
+      <div class="repo-list-label">Indexed Repos</div>
+      <div id="repoListItems">
+        <div class="repo-empty">No repos indexed yet.<br>Paste a GitHub URL above to start.</div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="repo-bar">
+      <span id="repoBarContent" class="repo-bar-empty">← Select or index a repo to begin</span>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcomeScreen">
+        <div class="welcome-icon">🔍</div>
+        <h2>Ask anything about your code</h2>
+        <p>Index a GitHub repository or local project, then ask questions in natural language. The assistant retrieves relevant code chunks and answers with source citations.</p>
+        <div class="welcome-hints" id="hintChips">
+          <div class="hint-chip" onclick="useHint(this)">How does authentication work in this codebase?</div>
+          <div class="hint-chip" onclick="useHint(this)">What does the main entry point do?</div>
+          <div class="hint-chip" onclick="useHint(this)">Explain the database schema and models</div>
+          <div class="hint-chip" onclick="useHint(this)">Walk me through the API endpoints</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="question"
+          placeholder="Ask a question about the codebase…"
+          rows="1"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendQuestion()">▶</button>
+      </div>
+      <div class="input-hint">
+        <span><kbd>Enter</kbd> new line &nbsp;·&nbsp; <kbd>Ctrl Enter</kbd> send</span>
+        <span style="margin-left:auto">Powered by GPT-4o + ChromaDB</span>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000';
+const md  = window.marked;
+md.setOptions({ breaks: true, gfm: true });
+
+let activeRepo = null;
+let repos      = [];
+let streaming  = false;
+
+async function init() {
+  await checkHealth();
+  await loadRepos();
+  setInterval(checkHealth, 30_000);
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    const dot = document.getElementById('statusDot');
+    const lbl = document.getElementById('statusLabel');
+    if (d.openai_key_configured) {
+      dot.className = 'status-dot ok';
+      lbl.textContent = 'Backend connected';
+    } else {
+      dot.className = 'status-dot fail';
+      lbl.textContent = 'Missing API key';
+    }
+  } catch {
+    document.getElementById('statusDot').className = 'status-dot fail';
+    document.getElementById('statusLabel').textContent = 'Backend offline';
+  }
+}
+
+async function loadRepos() {
+  try {
+    const r = await fetch(`${API}/repos`);
+    const d = await r.json();
+    repos = d.repos || [];
+    renderRepoList();
+  } catch {}
+}
+
+function renderRepoList() {
+  const el = document.getElementById('repoListItems');
+  if (!repos.length) {
+    el.innerHTML = `<div class="repo-empty">No repos indexed yet.<br>Paste a GitHub URL above to start.</div>`;
+    return;
+  }
+  el.innerHTML = repos.map(r => `
+    <div class="repo-item ${activeRepo === r.name ? 'active' : ''}" onclick="selectRepo('${r.name}')">
+      <div class="repo-icon">${langIcon(r.name)}</div>
+      <div class="repo-info">
+        <div class="repo-name">${r.name}</div>
+        <div class="repo-meta">${r.chunk_count.toLocaleString()} chunks</div>
+      </div>
+      <div class="repo-actions">
+        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteRepo('${r.name}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function langIcon(name) {
+  if (/py|python/i.test(name)) return '🐍';
+  if (/js|node|react|vue|next/i.test(name)) return '⚡';
+  if (/ts|angular/i.test(name)) return '🔷';
+  if (/go\b|golang/i.test(name)) return '🐹';
+  if (/rust/i.test(name)) return '🦀';
+  if (/java\b/i.test(name)) return '☕';
+  return '📦';
+}
+
+function selectRepo(name) {
+  activeRepo = name;
+  const repo = repos.find(r => r.name === name);
+  renderRepoList();
+  const bar = document.getElementById('repoBarContent');
+  bar.innerHTML = `
+    <span class="repo-bar-name">📂 ${name}</span>
+    <span class="repo-bar-count">${repo?.chunk_count.toLocaleString() ?? '?'} chunks indexed</span>
+  `;
+  document.getElementById('question').placeholder = `Ask anything about "${name}"…`;
+  document.getElementById('question').focus();
+}
+
+async function ingestRepo() {
+  const source = document.getElementById('repoSource').value.trim();
+  const name   = document.getElementById('repoName').value.trim() || null;
+  if (!source) { toast('Paste a GitHub URL or local path', 'error'); return; }
+
+  const btn  = document.getElementById('ingestBtn');
+  const prog = document.getElementById('progressBar');
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span> Indexing…';
+  prog.classList.add('active');
+
+  try {
+    const r = await fetch(`${API}/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, repo_name: name }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Ingestion failed');
+    toast(`✓ Indexed ${d.chunks_indexed.toLocaleString()} chunks from ${d.files_processed} files`, 'success');
+    document.getElementById('repoSource').value = '';
+    document.getElementById('repoName').value   = '';
+    await loadRepos();
+    selectRepo(d.repo_name);
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>⬇</span> Index Repository';
+    prog.classList.remove('active');
+  }
+}
+
+async function deleteRepo(name) {
+  if (!confirm(`Remove "${name}" from the index?`)) return;
+  try {
+    await fetch(`${API}/repos/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    if (activeRepo === name) {
+      activeRepo = null;
+      document.getElementById('repoBarContent').className = 'repo-bar-empty';
+      document.getElementById('repoBarContent').textContent = '← Select or index a repo to begin';
+      document.getElementById('question').placeholder = 'Ask a question about the codebase…';
+    }
+    await loadRepos();
+    toast(`Removed "${name}"`, 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function useHint(el) {
+  const q = el.textContent.trim();
+  document.getElementById('question').value = q;
+  autoResize(document.getElementById('question'));
+  document.getElementById('question').focus();
+}
+
+function handleKey(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendQuestion();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+async function sendQuestion() {
+  const q = document.getElementById('question').value.trim();
+  if (!q || streaming) return;
+  if (!activeRepo) { toast('Select a repo first', 'error'); return; }
+
+  hideWelcome();
+  appendMessage('user', q);
+
+  document.getElementById('question').value = '';
+  autoResize(document.getElementById('question'));
+  document.getElementById('sendBtn').disabled = true;
+  streaming = true;
+
+  const bodyEl = appendMessage('ai', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'typing-cursor';
+  bodyEl.appendChild(cursor);
+
+  let fullText    = '';
+  let sourcesData = null;
+
+  try {
+    const res = await fetch(`${API}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, repo_name: activeRepo, top_k: 6 }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Query failed');
+    }
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buf     = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const data = JSON.parse(part.slice(6));
+
+        if (data.type === 'sources') {
+          sourcesData = data.sources;
+        } else if (data.type === 'text') {
+          fullText += data.content;
+          cursor.remove();
+          bodyEl.innerHTML = md.parse(fullText);
+          bodyEl.appendChild(cursor);
+          highlightCode(bodyEl);
+          addCopyButtons(bodyEl);
+          scrollToBottom();
+        } else if (data.type === 'done') {
+          cursor.remove();
+          bodyEl.innerHTML = md.parse(fullText);
+          highlightCode(bodyEl);
+          addCopyButtons(bodyEl);
+          if (sourcesData) renderSources(bodyEl, sourcesData);
+          scrollToBottom();
+        } else if (data.type === 'error') {
+          throw new Error(data.message);
+        }
+      }
+    }
+  } catch (e) {
+    cursor.remove();
+    bodyEl.innerHTML = `<span style="color:var(--red)">⚠ ${e.message}</span>`;
+  } finally {
+    streaming = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+function hideWelcome() {
+  const w = document.getElementById('welcomeScreen');
+  if (w) w.remove();
+}
+
+function appendMessage(role, text) {
+  const msgs = document.getElementById('messages');
+  const now  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const div  = document.createElement('div');
+  div.className = 'message';
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'msg-body';
+  if (role === 'user') bodyEl.textContent = text;
+
+  div.innerHTML = `
+    <div class="msg-avatar ${role}">${role === 'user' ? '👤' : '🤖'}</div>
+    <div class="msg-content">
+      <div class="msg-header">
+        <span class="msg-author ${role}">${role === 'user' ? 'You' : 'RAG Assistant'}</span>
+        <span class="msg-time">${now}</span>
+      </div>
+    </div>
+  `;
+  div.querySelector('.msg-content').appendChild(bodyEl);
+  msgs.appendChild(div);
+  scrollToBottom();
+  return bodyEl;
+}
+
+function renderSources(afterEl, sources) {
+  const panel  = document.createElement('div');
+  panel.className = 'sources-panel';
+
+  const header = document.createElement('div');
+  header.className = 'sources-header';
+  header.innerHTML = `
+    <span class="sources-title">Sources</span>
+    <span class="sources-count">${sources.length}</span>
+    <span class="sources-chevron open">▲</span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'sources-body open';
+
+  sources.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'source-item';
+    item.innerHTML = `
+      <div class="source-item-header">
+        <div class="source-num">${s.index}</div>
+        <div class="source-file" title="${s.file}">${s.file}</div>
+        <div class="source-sim">${Math.round(s.similarity * 100)}%</div>
+      </div>
+      <div class="source-meta">fn: ${s.function} · lines ${s.lines} · ${s.language}</div>
+      <div class="source-code-preview">
+        <pre><code class="language-${s.language}">${escHtml(s.code.slice(0, 800))}</code></pre>
+      </div>
+    `;
+    item.onclick = () => {
+      const preview = item.querySelector('.source-code-preview');
+      const isOpen  = preview.classList.toggle('open');
+      if (isOpen) hljs.highlightElement(preview.querySelector('code'));
+    };
+    body.appendChild(item);
+  });
+
+  header.onclick = () => {
+    body.classList.toggle('open');
+    header.querySelector('.sources-chevron').classList.toggle('open');
+  };
+
+  panel.appendChild(header);
+  panel.appendChild(body);
+  afterEl.parentElement.appendChild(panel);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function highlightCode(el) {
+  el.querySelectorAll('pre code').forEach(b => {
+    if (!b.dataset.highlighted) hljs.highlightElement(b);
+  });
+}
+
+function addCopyButtons(el) {
+  el.querySelectorAll('pre').forEach(pre => {
+    if (pre.querySelector('.code-copy')) return;
+    const btn = document.createElement('button');
+    btn.className = 'code-copy';
+    btn.textContent = 'copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(pre.querySelector('code')?.textContent || '');
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    };
+    pre.style.position = 'relative';
+    pre.appendChild(btn);
+  });
+}
+
+function scrollToBottom() {
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function newChat() {
+  if (streaming) return;
+  document.getElementById('messages').innerHTML = `
+    <div class="welcome" id="welcomeScreen">
+      <div class="welcome-icon">🔍</div>
+      <h2>Ask anything about your code</h2>
+      <p>Index a GitHub repository or local project, then ask questions in natural language. The assistant retrieves relevant code chunks and answers with source citations.</p>
+      <div class="welcome-hints">
+        <div class="hint-chip" onclick="useHint(this)">How does authentication work in this codebase?</div>
+        <div class="hint-chip" onclick="useHint(this)">What does the main entry point do?</div>
+        <div class="hint-chip" onclick="useHint(this)">Explain the database schema and models</div>
+        <div class="hint-chip" onclick="useHint(this)">Walk me through the API endpoints</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('question').value = '';
+  autoResize(document.getElementById('question'));
+  document.getElementById('question').focus();
+}
+
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3500);
+}
+
+init();
+</script>
+</body>
+</html>
