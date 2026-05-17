@@ -92,11 +92,13 @@ class QueryRequest(BaseModel):
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 def safe_collection_name(name: str) -> str:
-    """ChromaDB collection names must be alphanumeric + underscores."""
-    name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-    if name[0].isdigit():
+    """ChromaDB collection names must be alphanumeric + underscores/hyphens, 3-63 chars."""
+    name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+    name = re.sub(r"_+", "_", name)  # no consecutive underscores
+    name = name.strip("_-")
+    if not name or name[0].isdigit():
         name = "r_" + name
-    return name[:60]
+    return name[:63] if len(name) >= 3 else name + "_db"
 
 
 def get_or_create_collection(repo_name: str):

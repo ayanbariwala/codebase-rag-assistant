@@ -138,26 +138,9 @@ curl -X POST http://localhost:8000/query \
   -d '{"question": "How does dependency injection work?", "repo_name": "fastapi"}'
 ```
 
-## 💡 How to Talk About This in Interviews
-
-**What it does:** Implements a Retrieval-Augmented Generation (RAG) pipeline that lets users query any codebase in natural language.
-
-**The interesting problems solved:**
-1. **Semantic chunking** — instead of splitting code arbitrarily, we use Python's AST to extract meaningful units (functions/classes), improving retrieval quality
-2. **Vector similarity search** — code chunks are embedded into a high-dimensional space; at query time, the question is embedded and we find the nearest chunks by cosine similarity in ChromaDB
-3. **Streaming UX** — used Server-Sent Events (SSE) to stream GPT-4o tokens in real-time, preventing the UI from blocking on long responses
-4. **Source attribution** — the retrieved chunks are passed as context to the LLM with explicit [Source N] markers, so citations in the answer map back to exact file + line numbers
-
-**What I'd do to scale it:**
-- Replace ChromaDB with Pinecone/Weaviate for multi-user production use
-- Add re-ranking (cross-encoder) for better retrieval precision
-- Support incremental re-indexing (only re-embed changed files via git diff)
-- Add authentication and per-user index isolation
 
 ## 📊 Supported Languages
 
 Python · JavaScript · TypeScript · Go · Java · Rust · C/C++ · C# · Ruby · PHP · Kotlin · Swift · Bash · Markdown
 
-## 📝 License
 
-MIT — feel free to fork, extend, and put it on your resume!
